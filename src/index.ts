@@ -5,6 +5,7 @@ import cors from 'cors';
 import { Pool } from 'pg';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import cookieParser from 'cookie-parser';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -16,19 +17,20 @@ const pool = new Pool({
 
 app.use(cors({
   origin: 'http://localhost:5173',
-  exposedHeaders: ['Authorization'],
-  credentials: true
+  credentials: true,            
+  exposedHeaders: ['set-cookie']
 }));
+
 app.use(express.json());
+app.use(cookieParser());
 
 const authenticateToken = (req: any, res: any, next: any) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = req.cookies.token; 
 
-  if (!token) return res.status(401).json({ error: 'Токен отсутствует' });
+  if (!token) return res.status(401).json({ error: 'No token' });
 
   jwt.verify(token, jwtSecret, (err: any, user: any) => {
-    if (err) return res.status(403).json({ error: 'Неверный токен' });
+    if (err) return res.status(403).json({ error: 'Incorrect token' });
     req.user = user;
     next();
   });
@@ -38,22 +40,33 @@ app.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const userResult = await pool.query('SELECT * FROM "User" WHERE email = $1', [email]);
-    if (userResult.rows.length === 0) return res.status(404).json({ error: 'Пользователь не найден' });
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
 
     const user = userResult.rows[0];
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ error: 'Неверный пароль' });
+    if (!isMatch) return res.status(401).json({ error: 'Incorrect password' });
 
     const token = jwt.sign({ id: user.id }, jwtSecret, { expiresIn: '1h' });
 
+    res.cookie('token', token, {
+      httpOnly: true,     
+      secure: false,      
+      sameSite: 'lax',   
+      maxAge: 3600000   
+    });
+
     res.json({ 
       status: 'success', 
-      token: token,
       data: user 
     });
   } catch (error) {
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ error: 'Server error' });
   }
+});
+
+app.post('/auth/logout', (req, res) => {
+  res.clearCookie('token');
+  res.json({ status: 'success' });
 });
 
 app.get('/auth/user', authenticateToken, async (req: any, res: any) => {
@@ -61,7 +74,7 @@ app.get('/auth/user', authenticateToken, async (req: any, res: any) => {
     const user = await pool.query('SELECT id, email, name FROM "User" WHERE id = $1', [req.user.id]);
     res.json({ status: 'success', data: user.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -75,12 +88,12 @@ app.post('/auth/register', async (req, res) => {
     );
     res.status(201).json({ status: 'success', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ error: 'Ошибка регистрации' });
+    res.status(500).json({ error: 'Registration error' });
   }
 });
 
-app.listen(port, () => console.log(`🚀 Сервер готов: http://localhost:${port}`));
+app.listen(port, () => console.log(`🚀 Server ready: http://localhost:${port}`));
 
 app.get('/', (req, res) => {
-  res.send('Бэкенд MeetBook запущен');
+  res.send('MeetBook backend run');
 });
