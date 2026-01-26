@@ -18,26 +18,32 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json());
 
-app.post('/register', async (req, res) => {
-  const { email, password, name } = req.body;
+app.post('/auth/register', async (req, res) => {
+  const { email, password, fullName } = req.body; 
+  
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
+    
     const result = await pool.query(
-      'INSERT INTO "User" (email, name) VALUES ($1, $2) RETURNING *',
-      [email, name]
+      'INSERT INTO "User" (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name',
+      [email, hashedPassword, fullName]
     );
-    res.status(201).json({ message: 'Пользователь создан', user: result.rows[0] });
+    
+    res.status(201).json({ status: 'success', user: result.rows[0] });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при регистрации' });
+    console.error('Ошибка БД:', error); 
+    res.status(500).json({ error: 'Ошибка при регистрации в базе данных' });
   }
 });
 
-app.post('/login', async (req, res) => {
-  const { email } = req.body;
+app.post('/auth/login', async (req, res) => {
+  const { email, password } = req.body;
   try {
     const user = await pool.query('SELECT * FROM "User" WHERE email = $1', [email]);
     if (user.rows.length === 0) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    const isMatch = await bcrypt.compare(password, user.rows[0].password);
+    if (!isMatch) return res.status(401).json({ error: 'Неверный пароль' });
 
     const token = jwt.sign({ id: user.rows[0].id }, jwtSecret, { expiresIn: '1h' });
     res.json({ token, user: user.rows[0] });
