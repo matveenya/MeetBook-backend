@@ -1,25 +1,60 @@
-import express from 'express';
-import { PrismaClient } from '@prisma/client';
-import dotenv from 'dotenv';
-
+import * as dotenv from 'dotenv';
 dotenv.config();
 
-const app = express();
-const prisma = new PrismaClient();
-const port = process.env.PORT || 3000;
+import express from 'express';
+import cors from 'cors';
+import { Pool } from 'pg';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
+const app = express();
+const port = process.env.PORT || 3001;
+const jwtSecret = process.env.JWT_SECRET || 'fallback-secret';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+app.use(cors());
 app.use(express.json());
 
-app.get('/users', async (req, res) => {
+app.post('/register', async (req, res) => {
+  const { email, password, name } = req.body;
   try {
-    const users = await prisma.user.findMany();
-    res.json(users);
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'INSERT INTO "User" (email, name) VALUES ($1, $2) RETURNING *',
+      [email, name]
+    );
+    res.status(201).json({ message: 'Пользователь создан', user: result.rows[0] });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Ошибка подключения к базе данных' });
+    res.status(500).json({ error: 'Ошибка при регистрации' });
   }
 });
 
+app.post('/login', async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await pool.query('SELECT * FROM "User" WHERE email = $1', [email]);
+    if (user.rows.length === 0) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    const token = jwt.sign({ id: user.rows[0].id }, jwtSecret, { expiresIn: '1h' });
+    res.json({ token, user: user.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.get('/users', async (req, res) => {
+  const result = await pool.query('SELECT * FROM "User"');
+  res.json(result.rows);
+});
+
 app.listen(port, () => {
-  console.log(`🚀 Сервер запущен на http://localhost:${port}`);
+  console.log(`🚀 Сервер готов: http://localhost:${port}`);
+});
+
+app.get('/', (req, res) => {
+  res.send('Бэкенд MeetBook запущен');
 });
