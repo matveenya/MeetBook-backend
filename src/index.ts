@@ -86,8 +86,24 @@ app.post('/auth/register', async (req, res) => {
       'INSERT INTO "User" (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name',
       [email, hashedPassword, fullName]
     );
-    res.status(201).json({ status: 'success', data: result.rows[0] });
+    
+    const user = result.rows[0];
+
+    const token = jwt.sign({ id: user.id }, jwtSecret, { expiresIn: '1h' });
+
+    res.cookie('token', token, {
+      httpOnly: true,     
+      secure: false,    
+      sameSite: 'lax',   
+      maxAge: 3600000
+    });
+
+    res.status(201).json({ 
+      status: 'success', 
+      data: user 
+    });
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({ error: 'Registration error' });
   }
 });
