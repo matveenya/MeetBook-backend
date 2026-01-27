@@ -22,6 +22,7 @@ app.use(cookieParser());
 app.post('/auth/login', authController.login);
 app.post('/auth/register', authController.register);
 app.post('/auth/logout', authController.logout);
+app.post('/auth/refresh', authController.refresh);
 
 app.get('/auth/user', authenticateToken, async (req, res) => {
   try {
