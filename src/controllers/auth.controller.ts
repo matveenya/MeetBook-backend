@@ -10,7 +10,7 @@ const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh-secret-key';
 const cookieOptions: any = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   path: '/',
 };
 
@@ -71,8 +71,11 @@ export const authController = {
       if (!user) throw new AppError('User not found', 401);
 
       const newAccessToken = jwt.sign({ id: user.id }, ACCESS_SECRET, { expiresIn: '15m' });
+      const newRefreshToken = jwt.sign({ id: user.id }, REFRESH_SECRET, { expiresIn: '7d' });
       
       res.cookie('accessToken', newAccessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+      res.cookie('refreshToken', newRefreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+
       res.json({ status: 'success' });
     } catch (err) {
       throw new AppError('Invalid refresh token', 403);
