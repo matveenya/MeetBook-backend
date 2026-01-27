@@ -81,6 +81,11 @@ app.get('/auth/user', authenticateToken, async (req: any, res: any) => {
 app.post('/auth/register', async (req, res) => {
   const { email, password, fullName } = req.body;
   try {
+    const userCheck = await pool.query('SELECT * FROM "User" WHERE email = $1', [email]);
+    if (userCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'A user with this email already exists.' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
       'INSERT INTO "User" (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name',
@@ -104,7 +109,7 @@ app.post('/auth/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration error' });
+    res.status(500).json({ error: 'Error creating account' });
   }
 });
 
