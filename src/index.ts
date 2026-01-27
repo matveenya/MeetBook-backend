@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { authController } from './controllers/auth.controller';
@@ -30,6 +30,25 @@ app.get('/auth/user', authenticateToken, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+app.get('/', (req, res) => {
+  res.send('MeetBook backend run');
+});
+
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Внутренняя ошибка сервера';
+
+  console.error(`[${new Date().toISOString()}] ERROR ${statusCode}: ${message}`);
+  if (statusCode === 500) {
+    console.error(err.stack);
+  }
+
+  res.status(statusCode).json({
+    status: 'error',
+    message: message
+  });
 });
 
 app.listen(port, () => console.log(`🚀 Server ready: http://localhost:${port}`));
