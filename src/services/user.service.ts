@@ -16,6 +16,11 @@ export const userService = {
     return result.rows[0];
   },
 
+  async findAll() {
+    const result = await pool.query('SELECT id, email, name FROM "User"');
+    return result.rows;
+  },
+
   async createUser(email: string, pass: string, name: string) {
     const hashedPassword = await bcrypt.hash(pass, 10);
     const result = await pool.query(

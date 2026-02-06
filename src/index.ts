@@ -23,6 +23,7 @@ app.post('/auth/login', authController.login);
 app.post('/auth/register', authController.register);
 app.post('/auth/logout', authController.logout);
 app.post('/auth/refresh', authController.refresh);
+app.get('/api/users', authenticateToken, authController.getAllUsers);
 
 app.get('/auth/user', authenticateToken, async (req, res) => {
   try {

@@ -82,6 +82,14 @@ export const authController = {
     }
   }),
 
+  getAllUsers: catchAsync(async (req: Request, res: Response) => {
+    const users = await userService.findAll(); 
+    res.json({ 
+      status: 'success', 
+      data: users 
+    });
+  }),
+
   logout: (req: Request, res: Response) => {
     res.clearCookie('accessToken', cookieOptions);
     res.clearCookie('refreshToken', cookieOptions);
