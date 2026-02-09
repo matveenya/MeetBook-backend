@@ -3,6 +3,12 @@ import jwt from 'jsonwebtoken';
 import { userService } from '../services/user.service';
 import { registerSchema, loginSchema } from '../utils/schemas';
 import { AppError, catchAsync } from '../utils/errors';
+import { OAuth2Client } from 'google-auth-library';
+
+const client = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET
+);
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'access-secret-key';
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh-secret-key';
@@ -26,6 +32,39 @@ export const authController = {
 
     if (!user || !(await userService.comparePassword(password, user.password))) {
       throw new AppError('Incorrect password or email', 401);
+    }
+
+    const accessToken = jwt.sign({ id: user.id }, ACCESS_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ id: user.id }, REFRESH_SECRET, { expiresIn: '7d' });
+
+    res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+    res.json({ 
+      status: 'success', 
+      data: { id: user.id, email: user.email, name: user.name } 
+    });
+  }),
+
+  googleLogin: catchAsync(async (req: Request, res: Response) => {
+    const { code } = req.body;
+    if (!code) throw new AppError('Code is missing', 400);
+
+    const { tokens } = await client.getToken({
+      code,
+      redirect_uri: 'http://localhost:5173/login/google',
+    });
+
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token!,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) throw new AppError('Invalid Google token', 400);
+
+    let user = await userService.findByEmail(payload.email);
+    if (!user) {
+      user = await userService.createUser(payload.email, Math.random().toString(36), payload.name || 'Google User');
     }
 
     const accessToken = jwt.sign({ id: user.id }, ACCESS_SECRET, { expiresIn: '15m' });
