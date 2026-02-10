@@ -20,6 +20,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.post('/auth/login', authController.login);
+app.post('/auth/google', authController.googleLogin);
 app.post('/auth/register', authController.register);
 app.post('/auth/logout', authController.logout);
 app.post('/auth/refresh', authController.refresh);

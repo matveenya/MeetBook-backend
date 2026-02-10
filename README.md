@@ -48,8 +48,10 @@ The server-side application for the **MeetBook** project, built with **Node.js**
     ```env
     PORT=3001
     DATABASE_URL=postgres://user:password@localhost:5432/meetbook
-    JWT_ACCESS_SECRET=ваш_секрет_access
-    JWT_REFRESH_SECRET=ваш_секрет_refresh
+    JWT_ACCESS_SECRET=you_secret_access
+    JWT_REFRESH_SECRET=you_secret_refresh
+    GOOGLE_CLIENT_ID=your_google_client_id
+    GOOGLE_CLIENT_SECRET=your_google_client_secret
     ```
 
 ### Development
