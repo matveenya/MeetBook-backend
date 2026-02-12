@@ -4,6 +4,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { authController } from './controllers/auth.controller';
+import { meetingController } from './controllers/meeting.controller';
 import { userService } from './services/user.service';
 import { authenticateToken } from './middlewares/auth.middleware';
 
@@ -25,6 +26,8 @@ app.post('/auth/register', authController.register);
 app.post('/auth/logout', authController.logout);
 app.post('/auth/refresh', authController.refresh);
 app.get('/api/users', authenticateToken, authController.getAllUsers);
+app.post('/api/meetings', authenticateToken, meetingController.createMeeting);
+app.get('/api/meetings', authenticateToken, meetingController.getAllMeetings);
 
 app.get('/auth/user', authenticateToken, async (req, res) => {
   try {
