@@ -28,6 +28,8 @@ app.post('/auth/refresh', authController.refresh);
 app.get('/api/users', authenticateToken, authController.getAllUsers);
 app.post('/api/meetings', authenticateToken, meetingController.createMeeting);
 app.get('/api/meetings', authenticateToken, meetingController.getAllMeetings);
+app.patch('/api/meetings/:id', authenticateToken, meetingController.updateMeeting);
+app.delete('/api/meetings/:id', authenticateToken, meetingController.deleteMeeting);
 
 app.get('/auth/user', authenticateToken, async (req, res) => {
   try {

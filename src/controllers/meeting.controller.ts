@@ -24,6 +24,24 @@ export const meetingController = {
     });
   }),
 
+  updateMeeting: catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { title, invitedIds } = req.body;
+
+    const meeting = await meetingService.update(Number(id), { title, invitedIds });
+    
+    if (!meeting) throw new AppError('Meeting not found', 404);
+
+    res.json({ status: 'success', data: meeting });
+  }),
+
+  deleteMeeting: catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    await meetingService.delete(Number(id));
+    
+    res.json({ status: 'success', message: 'Meeting deleted' });
+  }),
+
   getAllMeetings: catchAsync(async (req: Request, res: Response) => {
     const meetings = await meetingService.findAll();
     

@@ -39,6 +39,18 @@ export const meetingService = {
     }
   },
 
+  async update(id: number, { title }: { title: string; invitedIds?: number[] }) {
+    const result = await pool.query(
+      'UPDATE "Meeting" SET title = $1 WHERE id = $2 RETURNING id, title, start_time as "start", end_time as "end", user_id as "resourceId"',
+      [title, id]
+    );
+    return result.rows[0];
+  },
+
+  async delete(id: number) {
+    await pool.query('DELETE FROM "Meeting" WHERE id = $1', [id]);
+  },
+
   async findAll() {
     const result = await pool.query(
       'SELECT id, title, start_time as "start", end_time as "end", user_id as "resourceId" FROM "Meeting"'
