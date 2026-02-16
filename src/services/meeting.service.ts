@@ -5,12 +5,38 @@ const pool = new Pool({
 });
 
 export const meetingService = {
-  async create({ title, start, end, userId }: { title: string; start: string; end: string; userId: number }) {
-    const result = await pool.query(
-      'INSERT INTO "Meeting" (title, start_time, end_time, user_id) VALUES ($1, $2, $3, $4) RETURNING id, title, start_time as "start", end_time as "end", user_id as "resourceId"',
-      [title, start, end, userId]
-    );
-    return result.rows[0];
+  async create({ title, start, end, userId, invitedIds }: 
+    { title: string; start: string; end: string; userId: number; invitedIds: number[] }) {
+    
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const mainResult = await client.query(
+        'INSERT INTO "Meeting" (title, start_time, end_time, user_id) VALUES ($1, $2, $3, $4) RETURNING id, title, start_time as "start", end_time as "end", user_id as "resourceId"',
+        [title, start, end, userId]
+      );
+      const meeting = mainResult.rows[0];
+
+      if (invitedIds && invitedIds.length > 0) {
+        for (const id of invitedIds) {
+          if (Number(id) === userId) continue; 
+          
+          await client.query(
+            'INSERT INTO "Meeting" (title, start_time, end_time, user_id) VALUES ($1, $2, $3, $4)',
+            [title, start, end, id]
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+      return meeting;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   },
 
   async findAll() {

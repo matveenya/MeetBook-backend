@@ -4,7 +4,7 @@ import { catchAsync, AppError } from '../utils/errors';
 
 export const meetingController = {
   createMeeting: catchAsync(async (req: Request, res: Response) => {
-    const { title, start, end, userId } = req.body;
+    const { title, start, end, userId, invitedIds } = req.body;
 
     if (!title || !start || !end) {
       throw new AppError('Name and time required', 400);
@@ -14,7 +14,8 @@ export const meetingController = {
       title,
       start,
       end,
-      userId: userId || (req as any).user.id
+      userId: Number(userId) || (req as any).user.id,
+      invitedIds: invitedIds || []
     });
 
     res.status(201).json({
