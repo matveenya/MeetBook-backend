@@ -39,12 +39,41 @@ export const meetingService = {
     }
   },
 
-  async update(id: number, { title }: { title: string; invitedIds?: number[] }) {
-    const result = await pool.query(
-      'UPDATE "Meeting" SET title = $1 WHERE id = $2 RETURNING id, title, start_time as "start", end_time as "end", user_id as "resourceId"',
-      [title, id]
-    );
-    return result.rows[0];
+  async update(id: number, { title, invitedIds }: { title: string; invitedIds?: number[] }) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+  
+      const { rows } = await client.query('SELECT * FROM "Meeting" WHERE id = $1', [id]);
+      const original = rows[0];
+      if (!original) throw new Error('Meeting not found');
+  
+      await client.query('UPDATE "Meeting" SET title = $1 WHERE id = $2', [title, id]);
+  
+      await client.query(
+        'DELETE FROM "Meeting" WHERE start_time = $1 AND end_time = $2 AND title = $3 AND id != $4',
+        [original.start_time, original.end_time, original.title, id]
+      );
+  
+      if (invitedIds && invitedIds.length > 0) {
+        for (const uid of invitedIds) {
+          if (Number(uid) === Number(original.user_id)) continue; 
+          
+          await client.query(
+            'INSERT INTO "Meeting" (title, start_time, end_time, user_id) VALUES ($1, $2, $3, $4)',
+            [title, original.start_time, original.end_time, uid]
+          );
+        }
+      }
+  
+      await client.query('COMMIT');
+      return { ...original, title };
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   },
 
   async delete(id: number) {
