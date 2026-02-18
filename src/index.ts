@@ -7,6 +7,7 @@ import { authController } from './controllers/auth.controller';
 import { meetingController } from './controllers/meeting.controller';
 import { userService } from './services/user.service';
 import { authenticateToken } from './middlewares/auth.middleware';
+import { agoraController } from './controllers/agora.controller';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -30,6 +31,7 @@ app.post('/api/meetings', authenticateToken, meetingController.createMeeting);
 app.get('/api/meetings', authenticateToken, meetingController.getAllMeetings);
 app.patch('/api/meetings/:id', authenticateToken, meetingController.updateMeeting);
 app.delete('/api/meetings/:id', authenticateToken, meetingController.deleteMeeting);
+app.get('/api/agora/token', authenticateToken, agoraController.generateToken);
 
 app.get('/auth/user', authenticateToken, async (req, res) => {
   try {
