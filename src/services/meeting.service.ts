@@ -51,11 +51,13 @@ export const meetingService = {
       const original = rows[0];
       if (!original) throw new Error('Meeting not found');
   
+      const groupId = original.group_id; 
+  
       await client.query('UPDATE "Meeting" SET title = $1 WHERE id = $2', [title, id]);
   
       await client.query(
-        'DELETE FROM "Meeting" WHERE start_time = $1 AND end_time = $2 AND title = $3 AND id != $4',
-        [original.start_time, original.end_time, original.title, id]
+        'DELETE FROM "Meeting" WHERE group_id = $1 AND id != $2',
+        [groupId, id]
       );
   
       if (invitedIds && invitedIds.length > 0) {
@@ -63,14 +65,14 @@ export const meetingService = {
           if (Number(uid) === Number(original.user_id)) continue; 
           
           await client.query(
-            'INSERT INTO "Meeting" (title, start_time, end_time, user_id) VALUES ($1, $2, $3, $4)',
-            [title, original.start_time, original.end_time, uid]
+            'INSERT INTO "Meeting" (title, start_time, end_time, user_id, group_id) VALUES ($1, $2, $3, $4, $5)',
+            [title, original.start_time, original.end_time, uid, groupId]
           );
         }
       }
   
       await client.query('COMMIT');
-      return { ...original, title };
+      return { ...original, title, groupId };
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;
