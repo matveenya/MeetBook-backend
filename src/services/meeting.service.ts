@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { v4 as uuidv4 } from 'uuid';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -12,9 +13,11 @@ export const meetingService = {
     try {
       await client.query('BEGIN');
 
+      const groupId = uuidv4(); 
+
       const mainResult = await client.query(
-        'INSERT INTO "Meeting" (title, start_time, end_time, user_id) VALUES ($1, $2, $3, $4) RETURNING id, title, start_time as "start", end_time as "end", user_id as "resourceId"',
-        [title, start, end, userId]
+        'INSERT INTO "Meeting" (title, start_time, end_time, user_id, group_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, title, start_time as "start", end_time as "end", user_id as "resourceId", group_id as "groupId"',
+        [title, start, end, userId, groupId]
       );
       const meeting = mainResult.rows[0];
 
@@ -23,8 +26,8 @@ export const meetingService = {
           if (Number(id) === userId) continue; 
           
           await client.query(
-            'INSERT INTO "Meeting" (title, start_time, end_time, user_id) VALUES ($1, $2, $3, $4)',
-            [title, start, end, id]
+            'INSERT INTO "Meeting" (title, start_time, end_time, user_id, group_id) VALUES ($1, $2, $3, $4, $5)',
+            [title, start, end, id, groupId]
           );
         }
       }
@@ -82,7 +85,7 @@ export const meetingService = {
 
   async findAll() {
     const result = await pool.query(
-      'SELECT id, title, start_time as "start", end_time as "end", user_id as "resourceId" FROM "Meeting"'
+      'SELECT id, title, start_time as "start", end_time as "end", user_id as "resourceId", group_id as "groupId" FROM "Meeting"'
     );
     return result.rows;
   }
