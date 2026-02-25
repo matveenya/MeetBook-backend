@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { v4 as uuidv4 } from 'uuid';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -12,9 +13,11 @@ export const meetingService = {
     try {
       await client.query('BEGIN');
 
+      const groupId = uuidv4(); 
+
       const mainResult = await client.query(
-        'INSERT INTO "Meeting" (title, start_time, end_time, user_id) VALUES ($1, $2, $3, $4) RETURNING id, title, start_time as "start", end_time as "end", user_id as "resourceId"',
-        [title, start, end, userId]
+        'INSERT INTO "Meeting" (title, start_time, end_time, user_id, group_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, title, start_time as "start", end_time as "end", user_id as "resourceId", group_id as "groupId"',
+        [title, start, end, userId, groupId]
       );
       const meeting = mainResult.rows[0];
 
@@ -23,8 +26,8 @@ export const meetingService = {
           if (Number(id) === userId) continue; 
           
           await client.query(
-            'INSERT INTO "Meeting" (title, start_time, end_time, user_id) VALUES ($1, $2, $3, $4)',
-            [title, start, end, id]
+            'INSERT INTO "Meeting" (title, start_time, end_time, user_id, group_id) VALUES ($1, $2, $3, $4, $5)',
+            [title, start, end, id, groupId]
           );
         }
       }
@@ -48,11 +51,13 @@ export const meetingService = {
       const original = rows[0];
       if (!original) throw new Error('Meeting not found');
   
+      const groupId = original.group_id; 
+  
       await client.query('UPDATE "Meeting" SET title = $1 WHERE id = $2', [title, id]);
   
       await client.query(
-        'DELETE FROM "Meeting" WHERE start_time = $1 AND end_time = $2 AND title = $3 AND id != $4',
-        [original.start_time, original.end_time, original.title, id]
+        'DELETE FROM "Meeting" WHERE group_id = $1 AND id != $2',
+        [groupId, id]
       );
   
       if (invitedIds && invitedIds.length > 0) {
@@ -60,14 +65,14 @@ export const meetingService = {
           if (Number(uid) === Number(original.user_id)) continue; 
           
           await client.query(
-            'INSERT INTO "Meeting" (title, start_time, end_time, user_id) VALUES ($1, $2, $3, $4)',
-            [title, original.start_time, original.end_time, uid]
+            'INSERT INTO "Meeting" (title, start_time, end_time, user_id, group_id) VALUES ($1, $2, $3, $4, $5)',
+            [title, original.start_time, original.end_time, uid, groupId]
           );
         }
       }
   
       await client.query('COMMIT');
-      return { ...original, title };
+      return { ...original, title, groupId };
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;
@@ -82,7 +87,7 @@ export const meetingService = {
 
   async findAll() {
     const result = await pool.query(
-      'SELECT id, title, start_time as "start", end_time as "end", user_id as "resourceId" FROM "Meeting"'
+      'SELECT id, title, start_time as "start", end_time as "end", user_id as "resourceId", group_id as "groupId" FROM "Meeting"'
     );
     return result.rows;
   }
